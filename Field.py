@@ -18,6 +18,8 @@ class Field:
                 self.background['type'] = elem.text
                 if elem.text in ['stone','black']:
                     self.movable = False
+                if elem.text in ['orange','stone']:
+                    self.transferable = False
             elif elem.tag == 'object':
                 self.obj = {}
                 self.obj['type'] = elem.text
@@ -28,12 +30,14 @@ class Field:
                 self.building['type'] = elem.text
                 self.building['player'] = elem.attrib['player']
                 self.movable = False
+                self.transferable = False
             elif elem.tag == 'unit':
                 self.unit = {}
                 self.unit['type'] = elem.text
                 self.unit['player'] = elem.attrib['player']
                 self.unit['hp'] = elem.attrib['hp']
                 self.movable = False
+                self.transferable = False
             else:
                 logging.error('Unknown type of element on the field: '+elem.tag)
         if self.background == None:

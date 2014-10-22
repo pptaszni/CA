@@ -14,6 +14,8 @@ class Map:
         x = int(x)
         self.yBorder = y
         self.xBorder = x
+        self.directions = ['E','SE','SW','W','NW','NE']
+        self.rotations = ['Left','Right']
         self._map = [None for i in range(0,y+1)]
         for i in range(0, len(self._map)):
             self._map[i] = [None for j in range(0,x+1)]
@@ -65,17 +67,71 @@ class Map:
                     self._map[y+offset[1]][x+offset[0]] = value
                     changedCoord.append((x+offset[0],y+offset[1]))
         return changedCoord
-    def GetNeighbours(self,coords):
+    def Transferable(self,coords,offset):
+        if (coords[0] + offset[0] >= 0 and
+                coords[1] + offset[1] >= 0 and
+                coords[0] + offset[0] < self.xBorder and
+                coords[1] + offset[1] < self.yBorder):
+            field = self._map[coords[1]+offset[1]][coords[0]+offset[0]]
+            try:
+                if not field.transferable:
+                    return False
+            except:
+                return False
+        else:
+            try:
+                if not self._map[coords[1]][coords[0]].border:
+                    return False
+            except:
+                return False
+        return True
+    def GetNeighbours(self,coords,hold):
         y = int(coords[1])
         x = int(coords[0])
+        phi = coords[2]
         yEven = not bool(y%2)
         neighbours = []
-        for d in ['E','SE','SW','W','NW','NE']:
+        for d in self.directions:
             offset = self.MapOffset(yEven,d)
             if (x+offset[0] >= 0 and y+offset[1] >= 0 and 
                     x+offset[0] < self.xBorder and
                     y+offset[1] < self.yBorder):
-                neighbours.append({'coords':(x+offset[0],y+offset[1]),
-                    'field':self._map[y+offset[1]][x+offset[0]],
+                coords = (x+offset[0],y+offset[1],phi)
+                field = self._map[y+offset[1]][x+offset[0]]
+                movable = False
+                try:
+                    movable = field.movable
+                except:
+                    movable = False
+                if not movable:
+                    continue
+                if hold:
+                    itemOffset = self.MapOffset(yEven,phi)
+                    itemCoords = (x+itemOffset[0],y+itemOffset[1])
+                    itemYEven = not bool(itemCoords[1]%2)
+                    itemNewOffset = self.MapOffset(itemYEven,d)
+                    if not self.Transferable(itemCoords,itemNewOffset):
+                        continue
+                neighbours.append({'coords':coords,
+                    'field':field,
                     'direction':d})
+        for r in self.rotations:
+            d = None
+            if r == 'Left':
+                d = self.directions[(self.directions.index(phi)
+                    -1)%len(self.directions)]
+            elif r == 'Right':
+                d = self.directions[(self.directions.index(phi)
+                    -1)%len(self.directions)]
+            if hold:
+                field = self._map[y][x]
+                offset1 = self.MapOffset(yEven,phi)
+                offset2 = self.MapOffset(yEven,d)
+                offset2 = (offset2[0]-offset1[0],offset2[1]-offset1[1])
+                if not self.Transferable((x+offset1[0],y+offset1[1]),
+                        offset2):
+                    continue
+            neighbours.append({'coords':(x,y,d),
+                'field':field,
+                'direction':r})
         return neighbours

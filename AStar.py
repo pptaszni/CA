@@ -1,4 +1,5 @@
 import logging
+from math import sqrt
 
 class AStar():
 
@@ -13,7 +14,7 @@ class AStar():
         self.errorCost = -1
 
     def Start(self):
-        closed_set = [] # touples of coordinates (x,y)
+        closed_set = [] # touples of coordinates (x,y,phi)
         open_set = [] # dicts: {coords, f_score}
         came_from = {}
         g_score = {}
@@ -25,24 +26,22 @@ class AStar():
             'coords': start,
             'f_score': distance
             })
-        g_score[str(start[0])+','+str(start[1])] = 0
-        f_score[str(start[0])+','+str(start[1])] = distance
+        g_score[self.DictKey(start)] = 0
+        f_score[self.DictKey(start)] = distance
         while len(open_set) != 0:
             current = open_set.pop()
-            current_key = (str(current['coords'][0])+','+
-                    str(current['coords'][1]))
+            current_key = self.DictKey(current['coords'])
             if current['coords'] == goal:
                 return self.ReconstructPath(came_from)
 
             closed_set.append(current['coords'])
-            neighbours = self._map.GetNeighbours(current['coords'])
+            neighbours = self._map.GetNeighbours(current['coords'],hold=False)
             for nei in neighbours:
                 if nei['coords'] in closed_set:
                     continue
                 tentative_g_score = (g_score[current_key] + 
                         self.PassageCost(nei['field']))
-                nei_key = (str(nei['coords'][0])+','+
-                        str(nei['coords'][1]))
+                nei_key = self.DictKey(nei['coords'])
                 exists_in_openset = False
                 for item in open_set:
                     if item['coords'] == nei['coords']:
@@ -61,10 +60,14 @@ class AStar():
                             'f_score': f_score[nei_key]
                             })
                         open_set.sort(key=lambda x: x['f_score'],reverse=True)
+        logging.debug('Came from on failure: '+str(came_from))
         return {'status': 'NOK'}
 
     def HeuristicCost(self, start, goal):
-        return (goal[0]-start[0])**2 + (goal[1]-start[1])**2
+        distanceCost = sqrt((goal[0]-start[0])**2 + (goal[1]-start[1])**2)
+        angularCost = abs(self._map.directions.index(goal[2]) - 
+                self._map.directions.index(start[2]))
+        return distanceCost + angularCost
     def PassageCost(self, field):
         if field == None:
             return self.unknownCost
@@ -77,7 +80,6 @@ class AStar():
             return self.normalCost
         return self.errorCost
     def ReconstructPath(self, came_from):
-        goal_key = str(self.goal[0])+','+str(self.goal[1])
         current = self.goal
         total_cost = 0
         direction = 'Unknown'
@@ -91,9 +93,12 @@ class AStar():
                 }
         logging.debug(str(came_from))
         while current != self.start:
-            current_key = str(current[0])+','+str(current[1])
+            current_key = self.DictKey(current)
             total_cost = total_cost + self.PassageCost(
                     self._map._map[current[1]][current[0]])
             direction = came_from[current_key]['direction']
             current = came_from[current_key]['coords']
         return {'status': 'OK', 'direction': direction, 'cost': total_cost}
+    def DictKey(self,coord):
+        dkey = str(coord[0])+','+str(coord[1])+','+str(coord[2])
+        return dkey
